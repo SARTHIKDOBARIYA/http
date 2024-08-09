@@ -1,99 +1,109 @@
-const fs = require("fs")
-const path = require("path")
-const url = require("url")
+const fs = require("fs");
+const path = require("path");
+const url = require("url");
 
 function writeData(req, res) {
     try {
         let body = "";
 
         req.on('data', (d) => {
-            body = body + d
-        })
+            body += d;
+        });
 
-        req.on('end', (e) => {
-            const value = JSON.stringify(body)
+        req.on('end', () => {
+            const filePath = path.join(__dirname, "data.json");
+            const data = JSON.parse(body);
 
-            const filepath = path.join(__dirname, "data.json")
-            const fileData = JSON.parse(value)
+            fileData=JSON.stringify(data, null, 2)
 
-            console.log(fileData);
-            fs.writeFileSync(filepath, fileData)
-        })
-    }
-    catch (err) {
-        res.writeHead(500, { "Content-type": "application/json" })
-        res.end(JSON.stringify(err));
+            fs.writeFileSync(filePath, fileData);
+
+        });
+    } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
     }
 }
 
 function updateData(req, res) {
+    try {
+        let body = "";
 
-    const data = fs.readFileSync("data.json", "utf-8")
-    console.log(typeof data);
+        req.on('data', (d) => {
+            body += d;
+        });
 
-    const d = JSON.parse(data)
-    console.log(typeof d);
+        req.on('end', () => {
+            const parsedUrl = url.parse(req.url, true);
+            const id = parsedUrl.query.id;
 
+            const filePath = path.join(__dirname, "data.json");
+            let data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
-    d.map((x) => {
-        console.log(x.id)
-    })
+            const dataIndex = data.findIndex((x) => x.id === id);
 
+            if (dataIndex !== -1) {
+                const parsedBody = JSON.parse(body);
+                data[dataIndex] = { ...data[dataIndex], ...parsedBody };
 
-    // console.log(d);
-    //update id->Query
-    //body->name
+                fileData=JSON.stringify(data, null, 2)
+
+                fs.writeFileSync(filePath, fileData);
+
+            } else {
+                res.writeHead(404, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ message: "ID not found" }));
+            }
+        });
+    } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+    }
 }
 
 function deleteData(req, res) {
-
     try {
-        // console.log(req.url);
-
         const parsedUrl = url.parse(req.url, true);
-        console.log(parsedUrl);
-
-        const [,id]=parsedUrl.search.split('?')
-        console.log(id);
+        const id = parsedUrl.query.id;
         
-        const existingdata = fs.readFileSync("data.json", "utf-8", (err, data) => {
-            return data
-        })
+        const filePath = path.join(__dirname, "data.json");
 
-        console.log(existingdata);
+        let existingdata = JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
-        // const d=Array(existingdata)
-        // d.filter((x)=>x.id != id)
-        // console.log(d);
+        const Data = existingdata.filter((x) => x.id !== id);
 
-        const filepath = path.join(__dirname, "data.json")
-        const fileData = JSON.parse(existingdata, null, 2)
+        if (existingdata.length === Data.length) {
+            
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: "ID not found" }));
+        
+        } 
+        else {
 
-        fileData.push(JSON.parse(body))
-        console.log(fileData);
+            fileData=JSON.stringify(Data, null, 2)
+            fs.writeFileSync(filePath, fileData);
 
-        const file = JSON.stringify(fileData)
-        fs.writeFileSync(filepath, file)
-
-
-    }
-    catch (err) {
-        res.writeHead(500, { "Content-type": "application/json" })
-        res.end(JSON.stringify(err));
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: "Data deleted successfully" }));
+        
+        }
+    } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
     }
 }
 
 function readData(req, res) {
-
     try {
+        const filePath = path.join(__dirname, "data.json");
+        const data = fs.readFileSync(filePath, "utf-8");
 
-        const data = fs.readFileSync("data.json", "utf-8")
-        res.writeHead(200, { "Content-type": "application/json" })
-        res.end(JSON.parse(JSON.stringify(data)))
-    }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(data);
+    } 
     catch (err) {
-        res.writeHead(500, { "Content-type": "application/json" })
-        res.end(JSON.stringify(err));
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
     }
 }
 
@@ -102,30 +112,23 @@ function addData(req, res) {
         let body = "";
 
         req.on('data', (d) => {
-            body = body + d
-        })
+            body += d;
+        });
 
-        req.on('end', (e) => {
+        req.on('end', () => {
+            const filePath = path.join(__dirname, "data.json");
+            let data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
-            const existingdata = fs.readFileSync("data.json", "utf-8", (err, data) => {
-                // console.log(data);
-                return data
-            })
-            console.log({ existingdata });
+            data.push(JSON.parse(body));
 
-            const filepath = path.join(__dirname, "data.json")
-            const fileData = JSON.parse(existingdata, null, 2)
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
-            fileData.push(JSON.parse(body))
-            console.log(fileData);
 
-            const file = JSON.stringify(fileData)
-            fs.writeFileSync(filepath, file)
-        })
-    }
+        });
+    } 
     catch (err) {
-        res.writeHead(500, { "Content-type": "application/json" })
-        res.end(JSON.stringify(err));
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
     }
 }
 
@@ -135,4 +138,4 @@ module.exports = {
     deleteData,
     readData,
     addData
-}
+};
